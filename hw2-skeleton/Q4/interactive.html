@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <script type="text/javascript" src = "../lib/d3.v5.min.js"></script>
+    <div id='svg'></div>
+    <div id='svg1'></div>
+
+    <style type="text/css">
+      .line{
+        fill: none;
+        stroke: #ffab00;
+        stroke-width:2;
+      }
+
+      .title{
+        font-size: 18px;
+        text-anchor: middle;
+        text-align: center;
+      }
+      </style>
+  </head>
+
+  <body>
+    <script type = "text/javascript">
+
+      var margin = {top: 80, right: 200, bottom: 120, left: 140},
+      width = window.innerWidth - margin.left - margin.right,
+      height = window.innerHeight - margin.top - margin.bottom;
+
+      var formatYear = d3.timeParse("%Y");
+      var formatTime = d3.timeFormat("%Y");
+
+      var color = ["green", "purple", "blue","red"];
+
+
+      d3.dsv(",", "../Q4/state-year-earthquakes.csv", function(d){
+        return {state: d.state, region: d.region, year: formatTime(formatYear(d.year)), count: +d.count };
+      }).then(function(d){
+
+        var svg=d3.select("#svg").append("svg")
+        .attr("width", width+margin.left+margin.right)
+        .attr("height", height +margin.top + margin.bottom).append("g")
+        .attr("transform", "translate(" +margin.left + "," + margin.top+ ")");
+
+        var svg1=d3.select("#svg1").append("svg")
+        .attr("width", width+margin.left+margin.right)
+        .attr("height", height +margin.top + margin.bottom).append("g")
+        .attr("transform", "translate(" +margin.left + "," + margin.top+ ")");
+
+        svg.append("text")
+            .attr("x", (width/2))
+            .attr("y", -margin.bottom/3)
+            .style("text-anchor","middle")
+            .style("font-size","2.5em")
+            .style("font-weight",600)
+            .text("US Earthquakes by Region 2011-2015");
+
+        svg.append("text")
+            .attr("x", (width/2))
+            .attr("y", margin.bottom/6)
+            .style("text-anchor","middle")
+            .style("font-size","1.5em")
+            .style("font-weight",600)
+            .style('fill', 'blue')
+            .text("thu82");
+
+        //region list
+        var nest = d3.nest()
+                .key(function(d) {return d.region;})
+                .entries(d);
+
+        var regions = nest.map(function(d){return d.key;});
+
+        //console.log(regions);
+        //console.log(nest);
+
+        //draw for each region
+      function draw(region,i){
+        //select out corresponding data
+        var data_this = nest.find(
+        function (d){
+          return d.key==region;
+        });
+        //console.log(data_this);
+
+       //count value based on each year
+        var year_count=[0,0,0,0,0];
+        years = ["2011", "2012", "2013", "2014", "2015"]
+        var data = data_this.values;
+        console.log(data);
+
+        data.forEach(function(d){
+          for (var k = 0; k<5; k++){
+            if(d.year==years[k]){
+              year_count[k] = year_count[k]+d.count
+            }
+          }
+        });
+        //console.log("yearcount",year_count);
+
+        //build new dataframe
+        dataframe=[]
+        for (var j=0; j<5; j++){
+    	     var dd={
+      	      year: formatYear((2011+j)), count: year_count[j], values: data, region: region
+    	     };
+    	    dataframe.push(dd);
+        }
+
+        //console.log("dataframe:",dataframe);
+
+        var xScale=d3.scaleTime()
+        .domain([d3.min(dataframe, function(d){return d.year}), d3.max(dataframe, function(d){return d.year})])
+        .range([0,width]);
+
+        var yScale=d3.scaleLinear()
+        .domain([0, 2600]).range([height,0]);
+
+        var xAxis = d3.axisBottom(xScale)
+                      .ticks(d3.timeYear.every(1))
+                      .tickSizeOuter(0);
+
+
+        svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+
+        svg.append("g")
+            .attr("class", "y axis")
+            .call(d3.axisLeft(yScale));
+
+        //legend
+        var legendColor =[{key: "South", color: "green"}, {key: "West", color: "purple"}, {key: "Northeast", color: "blue"}, {key: "Midwest", color: "red"}];
+        var legend = svg.selectAll("circle_legend").data(legendColor)
+                        .enter()
+                        .append("g")
+                        .attr("class", "legend")
+                        .attr("transform" , function(d,i){return "translate(" +width *0.75 +","+(i*20) +")";});
+
+
+        legend.append("text")
+            .text(function(d){return d.key})
+            .style("font-size","1.3em")
+            .attr("transform", "translate(20,8)");
+
+        legend.append("circle")
+            .attr("fill", function(d){return d.color})
+            .attr("r",8);
+
+
+
+        var linegenerator= d3.line()
+        .x(function(d){return xScale(d.year);})
+        .y(function(d){return yScale(d.count);});
+
+        svg.append("path")
+          .data(dataframe)
+          .attr("class", "line")
+          .attr("d", linegenerator(dataframe))
+          .style("stroke", color[i]);
+
+        svg.selectAll("line_circle")
+          .data(dataframe)
+          .enter()
+          .append("circle")
+          .attr("class","data-circle")
+          .attr("r", 5)
+          .attr("cx", function(d){return xScale(d.year);})
+          .attr('cy', function(d){return yScale(d.count);})
+          .style("fill", color[i])
+
+          //INTERACTION
+          .on("mouseover", function(d){
+            d3.select(this).attr("r",10);
+
+            var data= d.values;
+            var year= formatTime(d.year);
+
+            data_year = data.filter(function(d){return d.year >= year;});
+            //console.log(data_year);
+
+            data_year.sort(function (a, b) {
+              if (a.count!=b.count){
+                return d3.ascending(a.count, b.count);
+              }else{
+                return d3.ascending(a.state, b.state);
+              }
+            });
+
+            svg1.append("text")
+            .attr("class", "title")
+            .attr("x", width/2)
+            .attr("y",-margin.top/16)
+            .text( d.region+ "ern Region Earthquakes "+year);
+
+            var y = d3.scaleBand()
+            .range([height, 0])
+            .padding(0.1).domain(data_year.map(function(d){return d.state;}));
+
+            var x = d3.scaleLinear()
+            .range([0, width]).domain([0, d3.max(data_year, function(d){return d.count;})]);
+
+            // append the rectangles for the bar chart
+            svg1.selectAll(".bar")
+                .data(data_year)
+              .enter().append("rect")
+                .attr("class", "bar")
+                //.attr("x", function(d) { return x(d.sales); })
+                .attr("width", function(d) {return x(d.count); } )
+                .attr("y", function(d) { return y(d.state); })
+                .attr("height", y.bandwidth())
+                .style('fill', 'steelblue');
+
+            // add the x Axis
+            function grid() {
+              return d3.axisBottom(x).ticks(9);
+            }
+
+            svg1.append("g")
+                .attr("class", "grid")
+                .call(grid().tickSize(height).tickFormat(""))
+
+            svg1.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x));
+
+            // add the y Axis
+            svg1.append("g")
+                .call(d3.axisLeft(y));
+
+
+            })
+
+            .on("mouseout", function() {
+              d3.select(this).attr("r",5);
+              d3.selectAll(".in").remove();
+              svg1.selectAll("*").remove();
+            });
+
+      }
+
+
+
+      //DRAW!
+      for (var reg=0; reg<4; reg++){
+        draw(regions[reg], reg);
+      }
+
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+1. To reduce overfitting of a single decision. By voting in a random forest, it averages the outcome of prediction, which decrease the variance without substantially increasing error from bias.
+2. Execution time: 31.461625 seconds
+3. Accuracy: 84.68%

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+  <style type="text/css">
+    .line{
+      fill: none;
+      stroke: #ffab00;
+      stroke-width:2;
+    }
+
+    .title{
+      font-size: 18px;
+      text-anchor: middle;
+      text-align: center;
+    }
+
+    .element {
+      position: relative;
+      top: 20px;
+    }
+
+  /* body {
+	margin: 0px;
+	width: 350px;
+	font: 12px arial;
+  } */
+
+  </style>
+  </head>
+
+  <body>
+    Select year:
+    <select id="year"></select>
+    <div class="container" id="svg"></div>
+    <script type = "text/javascript">
+        var margin = {top: 60, right: 100, bottom: 100, left: 100},
+        width = window.innerWidth - margin.left - margin.right,
+        height = window.innerHeight - margin.top - margin.bottom;
+
+        var formatYear = d3.timeParse("%Y");
+        var formatTime = d3.timeFormat("%Y");
+
+        d3.dsv(",", "../Q5/earthquake.csv", function(d){
+          return {year: formatTime(formatYear(d.Year)), state: d.State, seven:+d["7.0+"], six:+d["6_6.9"], five:+d["5_5.9"]};
+        }).then(function(data){
+
+          var year = ["2017","2018"];
+
+          var options = d3.select("#year").selectAll("option")
+            		.data(year)
+            	.enter().append("option")
+            		.text(d => d);
+
+          var svg=d3.select("#svg").append("svg")
+            .attr("width", width+margin.left+margin.right)
+            .attr("height", height +margin.top + margin.bottom).append("g")
+            .attr("transform", "translate(" +margin.left + "," + margin.top+ ")");
+
+          var keys = data.columns.slice(2);
+          //var keys = ["seven","six","five"];
+          console.log(keys);
+
+
+
+          ////////default-2017///////
+          default_y = "2017";
+          var data_year = data.filter(function(d){return d.year == default_y;});
+          console.log("dy",data_year);
+
+          //var keys = data_year.columns.slice(2);
+          keys = ["seven","six","five"];
+          //console.log(keys);
+
+          var color = d3.scaleOrdinal().range(["#b33040", "#d25c4d", "#f2b447"]).domain(keys);
+
+
+          var groups = d3.map(data_year, function(d){return(d.state)}).keys();
+          //console.log(groups);
+
+          var stackedData = d3.stack()
+             .keys(keys)(data_year);
+          console.log(stackedData);
+
+          var maxRange = d3.max(stackedData[2])[1];
+          //console.log(maxRange);
+
+
+          var x = d3.scaleBand()
+              .domain(groups)
+              .range([margin.left, width - margin.right])
+              .padding([0.2]);
+          var y = d3.scaleLinear()
+            .domain([0, maxRange])
+            .range([height, 0]);
+
+           var yAxis = d3.axisLeft(y)
+                         .ticks(10);
+
+           var xAxis = d3.axisBottom(x);
+
+           svg.append("g")
+              .attr("class", "axis")
+              .attr("transform", "translate(0,"+(window.innerHeight-1.6*margin.bottom) +")")
+              .call(xAxis);
+
+           svg.append("g")
+              .attr("class","axis")
+              .attr("transform", "translate(" +(margin.left) +")")
+              .call(yAxis);
+
+
+           svg.append("g")
+             .selectAll("g")
+             // Enter in the stack data = loop key per key = group per group
+             .data(stackedData)
+             .enter().append("g")
+               .attr("fill", function(d) { return color(d.key); })
+               .selectAll("rect")
+               // enter a second time = loop subgroup per subgroup to add all rectangles
+               .data(function(d) { return d; })
+               .enter().append("rect")
+                 .attr("x", function(d) { return x(d.data.state); })
+                 .attr("y", function(d) { return y(d[1]); })
+                 .attr("height", function(d) { return y(d[0]) - y(d[1]); })
+                 .attr("width",x.bandwidth());
+           svg.selectAll("text.bar")
+                .data(stackedData[2])
+              .enter().append("text")
+                .attr("class", "bar")
+                .attr("text-anchor", "middle")
+                .attr("x", function(d,i) { return x(d.data.state) + margin.left*0.48; })
+                .attr("y", function(d) { return y(d[1])-margin.bottom*0.05; })
+                .text(function(d) { return d[1]; })
+                .style("font-size","12px");
+
+           //title and label
+           svg.append("text")
+               .attr('class','axis-label')
+               .attr('fill','black')
+               .attr("transform", "rotate(-90)")
+               .attr("y",  margin.left*0.4)
+               .attr("x", 0.1*margin.bottom-(height/2))
+               .attr("dy", "1em")
+               .style("text-anchor", "middle")
+               .style("font-size","15px")
+               .text("Num of Earthquakes");
+
+           svg.append("text")
+               .attr("x", (width/2))
+               .attr("y", -0.2*margin.left)
+               .style("text-anchor","middle")
+               .style("font-size","20px")
+               //.style("font-weight",400)
+               .text("Visualizing Earthquake Counts by State");
+           svg.append("text")
+               .attr('class','axis-label')
+               .attr('fill','black')
+               .attr("transform",   "translate("+ (width/2)+"," + (height +0.5*margin.top ) +")")
+               .style("text-anchor", "middle")
+               .style("font-size","15px")
+               .text("State");
+           svg.append("text")
+               .attr("x", width-margin.left)
+               .attr("y", height+1/2*margin.top)
+               .style("text-anchor","middle")
+               .style("font-size","15px")
+               .style("font-weight",300)
+               .style('fill', 'black')
+               .text("thu82");
+
+           //legend
+           var legendColor =[{key: "7.0+", color: "#b33040"}, {key: "6_6.9", color: "#d25c4d"}, {key: "5_5.9", color: "#f2b447"}];
+           var legend = svg.selectAll("circle_legend").data(legendColor)
+                           .enter()
+                           .append("g")
+                           .attr("class", "legend")
+                           .attr("transform" , function(d,i){return "translate(" +width *0.75 +","+(i*20) +")";});
+
+
+           legend.append("text")
+               .text(function(d){return d.key})
+               .style("font-size","15px")
+               .attr("transform", "translate(20,6)");
+
+           legend.append("circle")
+               .attr("fill", function(d){return d.color})
+               .attr("r",7);
+
+
+
+          ///////update_year//////////////
+          function update(year){
+            svg.selectAll("*").remove();
+            console.log(year);
+            var data_year = data.filter(function(d){return d.year == year;});
+            console.log("dy",data_year);
+
+            //var keys = data_year.columns.slice(2);
+            keys = ["seven","six","five"];
+
+            var color = d3.scaleOrdinal().range(["#b33040", "#d25c4d", "#f2b447"]).domain(keys);
+
+
+            var groups = d3.map(data_year, function(d){return(d.state)}).keys();
+            console.log(groups);
+
+            var stackedData = d3.stack()
+               .keys(keys)(data_year);
+            console.log(stackedData);
+
+            var maxRange = d3.max(stackedData[2])[1];
+            console.log(maxRange);
+
+           var x = d3.scaleBand()
+               .domain(groups)
+               .range([margin.left, width - margin.right])
+               .padding([0.2]);
+           var y = d3.scaleLinear()
+             .domain([0, maxRange])
+             .range([height, 0]);
+
+            var yAxis = d3.axisLeft(y)
+                          .ticks(10);
+
+            var xAxis = d3.axisBottom(x);
+
+            svg.append("g")
+               .attr("class", "axis")
+               .attr("transform", "translate(0,"+(window.innerHeight-1.6*margin.bottom) +")")
+               .call(xAxis);
+
+            svg.append("g")
+               .attr("class","axis")
+               .attr("transform", "translate(" +(margin.left) +")")
+               .call(yAxis);
+
+
+            svg.append("g")
+              .selectAll("g")
+              // Enter in the stack data = loop key per key = group per group
+              .data(stackedData)
+              .enter().append("g")
+                .attr("fill", function(d) { return color(d.key); })
+                .selectAll("rect")
+                // enter a second time = loop subgroup per subgroup to add all rectangles
+                .data(function(d) { return d; })
+                .enter().append("rect")
+                  .attr("x", function(d) { return x(d.data.state); })
+                  .attr("y", function(d) { return y(d[1]); })
+                  .attr("height", function(d) { return y(d[0]) - y(d[1]); })
+                  .attr("width",x.bandwidth());
+            svg.selectAll("text.bar")
+                 .data(stackedData[2])
+               .enter().append("text")
+                 .attr("class", "bar")
+                 .attr("text-anchor", "middle")
+                 .attr("x", function(d,i) { return x(d.data.state) + margin.left*0.48; })
+                 .attr("y", function(d) { return y(d[1])-margin.bottom*0.05; })
+                 .text(function(d) { return d[1]; })
+                 .style("font-size","12px");
+
+            //title and label
+            svg.append("text")
+                .attr('class','axis-label')
+                .attr('fill','black')
+                .attr("transform", "rotate(-90)")
+                .attr("y",  margin.left*0.4)
+                .attr("x", 0.1*margin.bottom-(height/2))
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .style("font-size","15px")
+                .text("Num of Earthquakes");
+
+            svg.append("text")
+                .attr("x", (width/2))
+                .attr("y", -0.2*margin.left)
+                .style("text-anchor","middle")
+                .style("font-size","20px")
+                //.style("font-weight",400)
+                .text("Visualizing Earthquake Counts by State");
+            svg.append("text")
+                .attr('class','axis-label')
+                .attr('fill','black')
+                .attr("transform",   "translate("+ (width/2)+"," + (height +0.5*margin.top ) +")")
+                .style("text-anchor", "middle")
+                .style("font-size","15px")
+                .text("State");
+            svg.append("text")
+                .attr("x", width-margin.left)
+                .attr("y", height+1/2*margin.top)
+                .style("text-anchor","middle")
+                .style("font-size","15px")
+                .style("font-weight",300)
+                .style('fill', 'black')
+                .text("thu82");
+
+            //legend
+
+            var legend = svg.selectAll("circle_legend").data(legendColor)
+                            .enter()
+                            .append("g")
+                            .attr("class", "legend")
+                            .attr("transform" , function(d,i){return "translate(" +width *0.75 +","+(i*20) +")";});
+
+
+            legend.append("text")
+                .text(function(d){return d.key})
+                .style("font-size","15px")
+                .attr("transform", "translate(20,6)");
+
+            legend.append("circle")
+                .attr("fill", function(d){return d.color})
+                .attr("r",7);
+          }
+
+
+
+          var select = d3.select("#year")
+        		.on("change", function() {
+        			update(this.value);
+        		})
+
+        });
+
+
+    </script>
+  </body>
+</html>

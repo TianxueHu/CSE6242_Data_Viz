@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <script type="text/javascript" src="../lib/d3.v5.min.js"></script>
+  <style type="text/css">
+        .line {
+            fill: none;
+            stroke: #ffab00;
+            stroke-width: 3;
+        }
+
+        .overlay {
+          fill: none;
+          pointer-events: all;
+        }
+
+        .dot {
+            fill: #ffab00;
+            stroke: #fff;
+        }
+
+        .focus circle {
+          fill: none;
+          stroke: steelblue;
+        }
+
+        @media print {
+           .pagebreak {
+        clear: both;
+        page-break-after: always;
+           }
+        }
+
+
+  </style>
+  </head>
+
+  <body>
+    <script type = "text/javascript">
+        var margin = {top: 80, right: 200, bottom: 100, left: 140},
+        width = window.innerWidth - margin.left - margin.right,
+        height = window.innerHeight - margin.top - margin.bottom;
+
+        var formatYear = d3.timeParse("%Y");
+
+        d3.dsv(",", "../Q3/earthquakes.csv", function(d){
+          return {year: formatYear(d.year), eight : +d["8.0+"], seven : +d["7_7.9"], six : +d["6_6.9"], five : + d["5_5.9"], estimated_deaths : +d["Estimated Deaths"]};
+        }).then(function(data){
+
+          var n = data.length
+
+          var xScale = d3.scaleTime()
+                .domain([d3.min(data, function(d){return d.year}), d3.max(data, function(d){return d.year})])
+                .range([0,width]);
+
+          var yScale = d3.scaleLinear()
+                .domain([0, d3.max(data, function(d){return d.five})])
+                .range([height,0]);
+
+          //generate lines for each
+          var line8 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { return yScale(d.eight); })
+                .curve(d3.curveMonotoneX)
+
+          var line7 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { return yScale(d.seven); })
+                .curve(d3.curveMonotoneX)
+
+          var line6 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { return yScale(d.six); })
+                .curve(d3.curveMonotoneX)
+
+          var line5 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { return yScale(d.five); })
+                .curve(d3.curveMonotoneX)
+
+          //chart 1
+          var svg1 = d3.select("body").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+          svg1.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + height + ")")
+              .call(d3.axisBottom(xScale));
+
+          svg1.append("text")
+              .attr('class','axis-label')
+              .attr('fill','black')
+              .attr("transform",   "translate("+ (width/2)+"," + (height +margin.top - 40 ) +")")
+              .style("text-anchor", "middle")
+              .style("font-size","1.3em")
+              .text("Year");
+
+          svg1.append("g")
+              .attr("class", "y axis")
+              .call(d3.axisLeft(yScale));
+
+          svg1.append("text")
+              .attr('class','axis-label')
+              .attr('fill','black')
+              .attr("transform", "rotate(-90)")
+              .attr("y",  -0.57* margin.left)
+              .attr("x", 0.25*margin.top-(height/2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .style("font-size","1.3em")
+              .text("Num of Earthquakes");
+
+          svg1.append("text")
+              .attr("x", (width/2))
+              .attr("y", -0.5*margin.bottom)
+              .style("text-anchor","middle")
+              .style("font-size","1.5em")
+              .style("font-weight",600)
+              .text("Earthquake Statistics for 2000-2015");
+
+          //legend
+          var legendColor =[{name: "5_5.9", color:"#FFC300"},{name: "6_6.9", color :"#FF5733"},  {name: "7_7.9", color: "#C70039"},{name: "8.0+",color: "#900C3F"} ];
+
+          legend = svg1.selectAll("rect")
+              .data(legendColor)
+              .enter()
+              .append("g")
+              .attr("class","lineLegend")
+              .attr("transform", function(d,i){return "translate(" +width*1.05 +"," + (i*22) +")";});
+
+          legend.append("text").text(function (d) {return d.name;})
+              .attr("transform", "translate(35,12)");
+
+          legend.append("rect")
+              .attr("fill", function(d){return d.color;})
+              .attr("width", 0.19*margin.left)
+              .attr("height", 0.16*margin.top);
+
+          //path
+          svg1.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line8(data))
+              .style("stroke","#900C3F");
+
+          svg1.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line7(data))
+              .style("stroke","#C70039");
+
+          svg1.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line6(data))
+              .style("stroke","#FF5733");
+
+          svg1.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line5(data))
+              .style("stroke","#FFC300");
+          //chart 1 done
+
+
+          //chart 2
+          var dataScale=d3.scaleLinear()
+              .domain([d3.min(data, function(d){return d.estimated_deaths;}),
+                d3.max(data, function(d){return d.estimated_deaths;})])
+              .range([100,500]);
+
+          var svg2 = d3.select("body").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+          svg2.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + height + ")")
+              .call(d3.axisBottom(xScale));
+
+          svg2.append("text")
+              .attr('class','axis-label')
+              .attr('fill','black')
+              .attr("transform",   "translate("+ (width/2)+"," + (height +0.5*margin.top ) +")")
+              .style("text-anchor", "middle")
+              .style("font-size","1.3em")
+              .text("Year");
+
+          svg2.append("g")
+              .attr("class", "y axis")
+              .call(d3.axisLeft(yScale));
+
+          svg2.append("text")
+              .attr('class','axis-label')
+              .attr('fill','black')
+              .attr("transform", "rotate(-90)")
+              .attr("y", -0.57*margin.left)
+              .attr("x", 0.1*margin.bottom-(height/2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .style("font-size","1.3em")
+              .text("Num of Earthquakes");
+
+          svg2.append("text")
+              .attr("x", (width/2))
+              .attr("y", -0.2*margin.bottom)
+              .style("text-anchor","middle")
+              .style("font-size","1.5em")
+              .style("font-weight",600)
+              .text("Earthquake Statistics for 2000-2015 with Symbols");
+
+          //legend
+          legend = svg2.selectAll("rect")
+              .data(legendColor)
+              .enter()
+              .append("g")
+              .attr("class","lineLegend")
+              .attr("transform", function(d,i){return "translate(" +width*1.05 +"," + (i*22) +")";});
+
+          legend.append("text").text(function (d) {return d.name;})
+              .attr("transform", "translate(35,12)");
+
+          legend.append("rect")
+              .attr("fill", function(d){return d.color;})
+              .attr("width", 0.19*margin.left)
+              .attr("height", 0.16*margin.top);
+
+          //path
+          svg2.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line8(data))
+              .style("stroke","#900C3F");
+
+
+          svg2.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line7(data))
+              .style("stroke","#C70039");
+
+          svg2.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line6(data))
+              .style("stroke","#FF5733");
+
+          svg2.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line5(data))
+              .style("stroke","#FFC300");
+
+
+          var symbols = [d3.symbolCircle,d3.symbolTriangle,d3.symbolDiamond,d3.symbolSquare]
+          var color = ["#FFC300","#FF5733", "#C70039","#900C3F"]
+          var level = ["five","six","seven","eight"]
+          for (i=0; i<4; i++){
+            data.forEach(function(d){
+              svg2.append("path")
+                .attr("class","dot")
+                .attr("d", d3.symbol().type(symbols[i]).size(dataScale(d.estimated_deaths)))
+                .attr("transform", "translate(" + xScale(d.year)+ "," + yScale(d[level[i]]) + ")" )
+                .style("fill",color[i]);
+            });
+          }
+
+
+          //chart 3
+
+          var svg3 = d3.select("body").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+          var yScale = d3.scaleSqrt()
+            .domain([0, d3.max(data, function(d){return d.five;})])
+            .range([height,0]);
+          var line8 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { return yScale(d.eight); })
+                .curve(d3.curveMonotoneX)
+
+          var line7 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { return yScale(d.seven); })
+                .curve(d3.curveMonotoneX)
+
+          var line6 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { return yScale(d.six); })
+                .curve(d3.curveMonotoneX)
+
+          var line5 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { return yScale(d.five); })
+                .curve(d3.curveMonotoneX)
+
+          svg3.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + height + ")")
+              .call(d3.axisBottom(xScale));
+
+          svg3.append("text")
+              .attr('class','axis-label')
+              .attr('fill','black')
+              .attr("transform",   "translate("+ (width/2)+"," + (height +0.5*margin.top ) +")")
+              .style("text-anchor", "middle")
+              .style("font-size","1.3em")
+              .text("Year");
+
+          svg3.append("g")
+              .attr("class", "y axis")
+              .call(d3.axisLeft(yScale));
+
+          svg3.append("text")
+              .attr('class','axis-label')
+              .attr('fill','black')
+              .attr("transform", "rotate(-90)")
+              .attr("y", -0.57*margin.left)
+              .attr("x", 0.1*margin.bottom-(height/2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .style("font-size","1.3em")
+              .text("Num of Earthquakes");
+
+          svg3.append("text")
+              .attr("x", (width/2))
+              .attr("y", -0.2*margin.bottom)
+              .style("text-anchor","middle")
+              .style("font-size","1.5em")
+              .style("font-weight",600)
+              .text("Earthquake Statistics for 2000-2015 with Symbols (Square root Scale)");
+
+          //legend
+          legend = svg3.selectAll("rect")
+              .data(legendColor)
+              .enter()
+              .append("g")
+              .attr("class","lineLegend")
+              .attr("transform", function(d,i){return "translate(" +width*1.05 +"," + (i*22) +")";});
+
+          legend.append("text").text(function (d) {return d.name;})
+              .attr("transform", "translate(35,12)");
+
+          legend.append("rect")
+              .attr("fill", function(d){return d.color;})
+              .attr("width", 0.19*margin.left)
+              .attr("height", 0.16*margin.top);
+
+          //path
+          svg3.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line8(data))
+              .style("stroke","#900C3F");
+
+          svg3.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line7(data))
+              .style("stroke","#C70039");
+
+          svg3.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line6(data))
+              .style("stroke","#FF5733");
+
+          svg3.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line5(data))
+              .style("stroke","#FFC300");
+
+          for (i=0; i<4; i++){
+            data.forEach(function(d,j){
+              svg3.append("path")
+                .attr("class","dot")
+                .attr("d", d3.symbol().type(symbols[i]).size(dataScale(d.estimated_deaths)))
+                .attr("transform", "translate(" + xScale(d.year)+ "," + yScale(d[level[i]]) + ")" )
+                .style("fill",color[i]);
+            });
+          }
+
+
+
+          //chart 4
+
+          var svg4 = d3.select("body").append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+          var yScale = d3.scaleLog()
+            .domain([0.9, d3.max(data, function(d){return d.five;})])
+            .range([height,0]);
+
+          var line8 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { if(d.eight==0){return height;}else{return yScale(d.eight);}})
+                .curve(d3.curveMonotoneX)
+
+          var line7 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { if(d.seven==0){return height;}else{return yScale(d.seven);}})
+                .curve(d3.curveMonotoneX)
+
+          var line6 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { if(d.six==0){return height;}else{return yScale(d.six);}})
+                .curve(d3.curveMonotoneX)
+
+          var line5 = d3.line()
+                .x(function(d) { return xScale(d.year); })
+                .y(function(d) { if(d.five==0){return height;}else{return yScale(d.five);}})
+                .curve(d3.curveMonotoneX)
+
+          svg4.append("g")
+              .attr("class", "x axis")
+              .attr("transform", "translate(0," + height + ")")
+              .call(d3.axisBottom(xScale));
+
+          svg4.append("text")
+              .attr('class','axis-label')
+              .attr('fill','black')
+              .attr("transform",   "translate("+ (width/2)+"," + (height +0.5*margin.top ) +")")
+              .style("text-anchor", "middle")
+              .style("font-size","1.3em")
+              .text("Year");
+
+          svg4.append("g")
+              .attr("class", "y axis")
+              .call(d3.axisLeft(yScale));
+
+          svg4.append("text")
+              .attr('class','axis-label')
+              .attr('fill','black')
+              .attr("transform", "rotate(-90)")
+              .attr("y", -0.57*margin.left)
+              .attr("x", 0.1*margin.bottom-(height/2))
+              .attr("dy", "1em")
+              .style("text-anchor", "middle")
+              .style("font-size","1.3em")
+              .text("Num of Earthquakes");
+
+          svg4.append("text")
+              .attr("x", (width/2))
+              .attr("y", -0.2*margin.bottom)
+              .style("text-anchor","middle")
+              .style("font-size","1.5em")
+              .style("font-weight",600)
+              .text("Earthquake Statistics for 2000-2015 with Symbols (Log Scale)");
+
+          //legend
+          legend = svg4.selectAll("rect")
+              .data(legendColor)
+              .enter()
+              .append("g")
+              .attr("class","lineLegend")
+              .attr("transform", function(d,i){return "translate(" +width*1.05 +"," + (i*22) +")";});
+
+          legend.append("text").text(function (d) {return d.name;})
+              .attr("transform", "translate(35,12)");
+
+          legend.append("rect")
+              .attr("fill", function(d){return d.color;})
+              .attr("width", 0.19*margin.left)
+              .attr("height", 0.16*margin.top);
+
+          //path
+          svg4.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line8(data))
+              .style("stroke","#900C3F");
+
+          svg4.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line7(data))
+              .style("stroke","#C70039");
+
+          svg4.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line6(data))
+              .style("stroke","#FF5733");
+
+          svg4.append("path")
+              .data(data)
+              .attr("class","line")
+              .attr("d", line5(data))
+              .style("stroke","#FFC300");
+
+
+          for (i=0; i<4; i++){
+            data.forEach(function(d,j){
+              if(d[level[i]]==0){ var yyy =  height;}else{var yyy = yScale(d[level[i]]);};
+              svg4.append("path")
+                .attr("class","dot")
+                .attr("d", d3.symbol().type(symbols[i]).size(dataScale(d.estimated_deaths)))
+                .attr("transform", "translate(" + xScale(d.year)+ "," + yyy + ")" )
+                .style("fill",color[i]);
+            });
+          }
+
+          svg4.append("text")
+              .attr("x", width+0.3*margin.left)
+              .attr("y", height+0.6*margin.bottom)
+              .style("text-anchor","middle")
+              .style("font-size","1em")
+              .style("font-weight",300)
+              .style('fill', 'black')
+              .text("thu82");
+
+
+        });
+
+
+
+    </script>
+  </body>
+</html>

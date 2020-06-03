@@ -1,0 +1,1 @@
+We shall use non-linear scales when the y values of multiple lines has very little difference (two lines are close at some points), to make the chart easier to understand but keep the shape of lines at the same time.

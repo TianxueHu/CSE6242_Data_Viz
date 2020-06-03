@@ -1,0 +1,282 @@
+  
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8">
+
+<style>
+.countries{
+	fill: none;
+}
+.states{
+fill:none;
+stroke: #fff;
+stroke-linejoin:round;
+
+
+}
+
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+
+
+
+ </style>
+</head>
+<body>
+<svg width="1000" height="600"></svg>
+<script src="../lib/d3.v5.min.js"></script>
+    <script src="../lib/d3-scale-chromatic.v1.min.js"></script>
+    <script src="../lib/topojson.v2.min.js"></script>
+    <script src="../lib/d3-tip.min.js"></script>
+<script type="text/javascript">
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+
+//for the tooltip
+var div = d3.select("body")
+		    .append("div")
+    		.attr("class", "tooltip")
+    		.style("opacity", 0);
+
+
+
+
+var colors = ['#fff5f0','#fee0d2','#fcbba1','#fc9272','#fb6a4a','#ef3b2c','#cb181d','#a50f15','#67000d'];
+var num_colors = colors.length;
+//map and projection
+var projection = d3.geoAlbersUsa()
+.scale(1000)
+.translate([width/2, height/2]);
+
+
+
+//define path generator
+
+var path = d3.geoPath()
+.projection(projection);
+
+
+
+
+
+
+
+
+
+
+//let us load the data
+
+/*d3.dsv(",","../Q6/state-earthquakes.csv", function(d){return {state: d.States, region: d.Region, total: +d["Total Earthquakes"]};}).then(function(data)
+{
+console.log(data);
+colscale.domain([1e-2 ,  d3.max(data, d=> d.total)]).clamp(true);*/
+
+//Read the data from the json file
+//d3.json("../Q6/states-10m.json" , function(error,json){
+
+  //if(error) throw error;
+
+  //read data
+  var promises = [d3.json("../Q6/states-10m.json"),
+
+  d3.csv("../Q6/state-earthquakes.csv", function(d){ return {state: d.States, region: d.Region, total: +d["Total Earthquakes"]};})
+
+  ];
+
+
+Promise.all(promises).then(function(d){
+json= d[0];
+data=d[1]
+ //Note that our code to draw the map should be contained over here
+
+
+var json1 = topojson.feature(json,json.objects.states).features;
+
+
+
+json1.forEach(function(json){
+
+    data.forEach(function(data){
+
+    if (data.state== json.properties.name)
+    {
+
+      json.properties.value = data.total;
+      json.properties.region= data.region;
+
+
+
+
+
+    }
+
+
+
+
+
+
+
+    });
+
+
+
+
+
+
+});
+
+console.log(json1);
+console.log(data);
+//create the scale functions
+var colscale= d3.scaleLog();
+
+
+var log_value= [1,5,10,50,100,500,1000,5000,10000];
+
+
+
+colscale.domain(log_value).range(colors).clamp(true);
+
+
+
+var tip = d3.tip().attr('class', 'd3-tip')
+.attr("opacity", 0)
+.attr("backgroud-color", "white")
+.attr("broder", "solid")
+.attr("broder-width", "2px")
+.attr("broder-radius", "5px")
+.offset([0,15])
+.html(function(d) { return "<p>State: "+ d.properties.name +"<br>Region " +d.properties.region+ "<br>Earthquakes "+ d.properties.value+"</p>"; });
+
+svg.call(tip);
+svg.append("g")
+.selectAll("path")
+.attr("class","states")
+.data(json1)
+.enter().append("path")
+.attr("d", path)
+.style("fill",function(d){
+  var value = d.properties.value;
+
+  if (value) {
+  //If value exists…
+  return colscale(value);
+  } else {
+  //If value is undefined…
+  return "#ffffcc";}
+
+//return "#ffffcc";
+
+})
+.style("stroke-width", 1)
+.on("mouseover", function(){ console.log(1); })
+.on("mouseover", function(d){
+
+       d3.select(this).style("opacity",0.5);
+
+
+tip.show(d,this);
+
+})
+.on("mouseout", function(d){
+
+ d3.select(this).style("opacity", 1);
+ tip.hide(d,this);
+
+
+
+
+});
+
+
+
+
+//Add legend
+
+
+
+var legend =svg.selectAll(".legend")
+.data(log_value)
+.enter()
+.append("g")
+.attr("transform", function(d,i){return "translate(" +850 +"," +(250+(i*20)) +")";})
+.attr("class", "legend");
+
+
+legend.append("rect")
+.attr("width", 20)
+.attr("height", 10)
+.style("fill", colscale);
+
+
+legend.append("text")
+.attr("class","label")
+.attr("x", 30)
+.attr("y", 10)
+.text(String);
+
+
+svg.append("text")
+.attr("class","legend'slabel")
+.attr("x" ,835)
+.attr("y", 240)
+.text("Earthquakes Frequency").style("font-weight","bold");
+
+
+
+
+
+
+
+ /* svg.append("path")
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 0.5)
+      .attr("d", path(topojson.mesh(json, json.objects.states, function(a, b) { return a !== b; })));*/
+
+
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+
+
+
+</body>
